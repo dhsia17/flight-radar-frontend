@@ -269,6 +269,55 @@ export async function upsertRoute(input: UpsertRouteInput): Promise<string> {
   return id;
 }
 
+export interface BulkDateInput {
+  departureDateFrom: string;   // YYYY-MM-DD
+  departureDateTo: string;     // YYYY-MM-DD
+  returnMinDays?: number | null;
+  returnMaxDays?: number | null;
+}
+
+export async function bulkUpdateDates(input: BulkDateInput): Promise<number> {
+  const db = getDb();
+
+  // Compute return window from departure end + min/max stay days
+  const returnDateFrom = input.returnMinDays
+    ? addDays(input.departureDateFrom, input.returnMinDays)
+    : null;
+  const returnDateTo = input.returnMaxDays
+    ? addDays(input.departureDateTo, input.returnMaxDays)
+    : null;
+
+  const result = await db.execute({
+    sql: `
+      UPDATE tracked_destinations
+      SET departure_date_from = ?,
+          departure_date_to   = ?,
+          return_date_from    = ?,
+          return_date_to      = ?,
+          return_min_days     = ?,
+          return_max_days     = ?,
+          updated_at          = CURRENT_TIMESTAMP
+      WHERE is_active = 1
+    `,
+    args: [
+      input.departureDateFrom,
+      input.departureDateTo,
+      returnDateFrom,
+      returnDateTo,
+      input.returnMinDays ?? null,
+      input.returnMaxDays ?? null,
+    ],
+  });
+
+  return result.rowsAffected ?? 0;
+}
+
+function addDays(dateStr: string, days: number): string {
+  const d = new Date(dateStr);
+  d.setDate(d.getDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
 export async function deactivateRoute(id: string): Promise<void> {
   const db = getDb();
   await db.execute({

@@ -117,16 +117,20 @@ export async function getAllRoutes(): Promise<RouteWithLatestPrice[]> {
     "SELECT * FROM tracked_destinations WHERE is_active = 1 ORDER BY priority ASC, destination_airport_code ASC"
   );
 
-  // Get latest price for each destination
+  // Get latest price for each destination from fare_observations
+  // price_amount_minor is in minor units (e.g. 50000 = SGD 500.00)
   const priceResult = await db.execute(`
-    SELECT ph.tracked_destination_id, ph.price, ph.currency, ph.scanned_at
-    FROM price_history ph
+    SELECT fo.tracked_destination_id,
+           fo.price_amount_minor / 100.0 AS price,
+           fo.currency_code              AS currency,
+           fo.observed_at               AS scanned_at
+    FROM fare_observations fo
     INNER JOIN (
-      SELECT tracked_destination_id, MAX(scanned_at) as max_scanned
-      FROM price_history
+      SELECT tracked_destination_id, MAX(observed_at) AS max_observed
+      FROM fare_observations
       GROUP BY tracked_destination_id
-    ) latest ON ph.tracked_destination_id = latest.tracked_destination_id
-                AND ph.scanned_at = latest.max_scanned
+    ) latest ON fo.tracked_destination_id = latest.tracked_destination_id
+             AND fo.observed_at = latest.max_observed
   `);
 
   const priceMap = new Map<string, { price: number; scannedAt: string }>();

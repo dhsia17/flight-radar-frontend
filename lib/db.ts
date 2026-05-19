@@ -192,6 +192,19 @@ export interface UpsertRouteInput {
 export async function upsertRoute(input: UpsertRouteInput): Promise<string> {
   const db = getDb();
   const id = input.id ?? crypto.randomUUID();
+  // Compute actual return dates from stay-day offsets when not explicitly provided.
+  // This ensures "range" date mode works with the scanner (which reads returnDateFrom).
+  const returnDateFrom =
+    input.returnDateFrom ??
+    (input.returnMinDays != null && input.departureDateFrom
+      ? addDays(input.departureDateFrom, input.returnMinDays)
+      : null);
+  const returnDateTo =
+    input.returnDateTo ??
+    (input.returnMaxDays != null && input.departureDateTo
+      ? addDays(input.departureDateTo, input.returnMaxDays)
+      : null);
+
 
   await db.execute({
     sql: `
@@ -251,8 +264,8 @@ export async function upsertRoute(input: UpsertRouteInput): Promise<string> {
       input.cabinClass,
       input.departureDateFrom ?? null,
       input.departureDateTo ?? null,
-      input.returnDateFrom ?? null,
-      input.returnDateTo ?? null,
+      returnDateFrom,
+      returnDateTo,
       input.returnMinDays ?? null,
       input.returnMaxDays ?? null,
       input.maxStops ?? null,

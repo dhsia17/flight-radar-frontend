@@ -1,38 +1,22 @@
 import { NextResponse } from "next/server";
-import { getRoute, upsertRoute, deactivateRoute } from "@/lib/db";
+import { upsertRoute, deactivateRoute } from "@/lib/db";
 
-export async function GET(
-  _req: Request,
-  { params }: { params: { id: string } }
-) {
-  try {
-    const route = await getRoute(params.id);
-    if (!route) return NextResponse.json({ error: "Not found" }, { status: 404 });
-    return NextResponse.json({ route });
-  } catch (err) {
-    console.error(err);
-    return NextResponse.json({ error: "Failed to fetch route" }, { status: 500 });
-  }
+interface Params {
+  params: { id: string };
 }
 
-export async function PUT(
-  req: Request,
-  { params }: { params: { id: string } }
-) {
+export async function PUT(req: Request, { params }: Params) {
   try {
     const body = await req.json();
-    await upsertRoute({ ...body, id: params.id });
-    return NextResponse.json({ ok: true });
+    const id = await upsertRoute({ ...body, id: params.id });
+    return NextResponse.json({ id });
   } catch (err) {
     console.error(err);
     return NextResponse.json({ error: "Failed to update route" }, { status: 500 });
   }
 }
 
-export async function DELETE(
-  _req: Request,
-  { params }: { params: { id: string } }
-) {
+export async function DELETE(_req: Request, { params }: Params) {
   try {
     await deactivateRoute(params.id);
     return NextResponse.json({ ok: true });
